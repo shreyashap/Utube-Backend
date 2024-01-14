@@ -7,19 +7,18 @@ cloudinary.config({
   api_secret: process.env.API_SECRET,
 });
 
-const ulpoadOnCloudinary = async (filePath) => {
+const uploadOnCloudinary = async (filePath) => {
   try {
-    if (!filePath) return;
-
+    if (!filePath) return null;
     const cloudinaryResponse = await cloudinary.uploader.upload(filePath, {
       resource_type: "auto",
     });
-    console.log("Cloudinary response :", cloudinaryResponse.url);
     return cloudinaryResponse;
   } catch (err) {
+    console.error("Error in uploading file on cloud :", err);
     fs.unlinkSync(filePath);
     return null;
   }
 };
 
-export default ulpoadOnCloudinary;
+export default uploadOnCloudinary;
