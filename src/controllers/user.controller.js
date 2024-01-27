@@ -174,4 +174,98 @@ const refreshAccessToken = asyncHandler(async () => {
     throw new ApiError(401, error?.message || "Invalid refresh token");
   }
 });
-export { registerUser, loginUser, logoutUser, refreshAccessToken };
+
+const changeCurrentPassword = asyncHandler(async (req, res) => {
+  const { oldPassword, newPassword, confirmPassword } = req.body;
+
+  if (newPassword !== confirmPassword) {
+    throw new ApiError(409, "New and confirm password didnt match");
+  }
+
+  const user = await User.findById(req.user?._id);
+  const isPasswordCorrect = await user.isPasswordCorrect(oldPassword);
+  if (!isPasswordCorrect) {
+    throw new ApiError(409, "Invalid password");
+  }
+
+  user.password = newPassword;
+  await user.save({ validateBeforeSave: false });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "password changed successfully"));
+});
+
+const getCurrentUser = asyncHandler(async (req, res) => {
+  return res
+    .status(200)
+    .json(new ApiResponse(200, req.user, "current user fetched successfully"));
+});
+
+const updateAccountDetails = asyncHandler(async (req, res) => {
+  const { fullName, email } = req.body;
+
+  if (!email || !fullName) {
+    throw new ApiError(409, "Provide email and fullName ");
+  }
+
+  User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: {
+        fullName,
+        email,
+      },
+    },
+    {
+      new: true,
+    }
+  ).select("-password");
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "Account details updated"));
+});
+
+const updateAvtarAndCoverImage = asyncHandler(async () => {
+  const avtarLocalPath = req.files?.avtar[0].path;
+  const coverImageLocalPath = req.files?.coverImage[0].path;
+  if (!avtarLocalPath || coverImageLocalPath) {
+    throw new ApiError(409, "Avtar or cover image file is missing");
+  }
+  const avtar = await uploadOnCloudinary(avtarLocalPath);
+  const coverImage = await uploadOnCloudinary(coverImageLocalPath);
+  if (!avtar.url) {
+    throw new ApiError(500, "Errpr while uploading avtar file");
+  }
+  if (!coverImage.url) {
+    throw new ApiError(500, "Errpr while uploading cover image file");
+  }
+
+  const user = await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: {
+        avtar: avtar.url,
+        coverImage: coverImage.url,
+      },
+    },
+    {
+      new: true,
+    }
+  ).select("-password");
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, { user }, "Images updated successfully"));
+});
+
+export {
+  registerUser,
+  loginUser,
+  logoutUser,
+  refreshAccessToken,
+  changeCurrentPassword,
+  updateAccountDetails,
+  updateAvtarAndCoverImage,
+};
